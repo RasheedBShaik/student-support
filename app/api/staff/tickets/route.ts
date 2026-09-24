@@ -5,8 +5,6 @@ import User from "@/models/User";
 import Department from "@/models/Department";
 import { getSessionUserId } from "@/lib/auth";
 
-const STAFF_ROLES = ["STAFF", "MANAGER", "ADMIN"] as const;
-
 const VALID_STATUSES = [
   "NEW",
   "ASSIGNED",
@@ -24,7 +22,10 @@ const VALID_PRIORITIES = [
   "URGENT",
 ] as const;
 
-const SLA_HOURS: Record<string, number> = {
+const SLA_HOURS: Record<
+  (typeof VALID_PRIORITIES)[number],
+  number
+> = {
   LOW: 72,
   MEDIUM: 48,
   HIGH: 24,
@@ -44,8 +45,73 @@ const EMPTY_STATS = {
   slaAtRisk: 0,
 };
 
+type PopulatedUser = {
+  _id: unknown;
+  name?: string;
+  email?: string;
+  role?: string;
+  department?: unknown;
+};
+
+type PopulatedDepartment = {
+  _id: unknown;
+  name?: string;
+};
+
+type PopulatedTicket = {
+  _id: unknown;
+  ticketNumber?: string;
+  subject?: string;
+  description?: string;
+  category?: string;
+  priority: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  sla?: {
+    responseDueAt?: Date | string | null;
+    resolutionDueAt?: Date | string | null;
+    respondedAt?: Date | string | null;
+    resolvedAt?: Date | string | null;
+  };
+  studentId?: PopulatedUser | null;
+  assignedTo?: PopulatedUser | null;
+  departmentId?: PopulatedDepartment | null;
+};
+
+type SlaTicket = {
+  status: string;
+  sla?: {
+    resolutionDueAt?: Date | string | null;
+  };
+};
+
+type TicketQuery = {
+  departmentId?: unknown;
+  status?: (typeof VALID_STATUSES)[number];
+  priority?: (typeof VALID_PRIORITIES)[number];
+  $or?: Array<{
+    ticketNumber?: {
+      $regex: string;
+      $options: "i";
+    };
+    subject?: {
+      $regex: string;
+      $options: "i";
+    };
+    description?: {
+      $regex: string;
+      $options: "i";
+    };
+  }>;
+};
+
 function getAge(createdAt: Date | string) {
   const created = new Date(createdAt).getTime();
+
+  if (Number.isNaN(created)) {
+    return "0h";
+  }
 
   const difference = Math.max(
     0,
@@ -66,7 +132,7 @@ function getAge(createdAt: Date | string) {
   return `${hours}h`;
 }
 
-function getSlaStatus(ticket: any) {
+function getSlaStatus(ticket: SlaTicket) {
   if (
     ticket.status === "RESOLVED" ||
     ticket.status === "CLOSED"
@@ -81,6 +147,11 @@ function getSlaStatus(ticket: any) {
   }
 
   const dueTime = new Date(due).getTime();
+
+  if (Number.isNaN(dueTime)) {
+    return "NO_SLA";
+  }
+
   const now = Date.now();
 
   if (dueTime <= now) {
@@ -95,6 +166,28 @@ function getSlaStatus(ticket: any) {
   }
 
   return "ON_TRACK";
+}
+
+function getIdString(value: unknown) {
+  if (!value) {
+    return "";
+  }
+
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "_id" in value
+  ) {
+    const objectWithId = value as {
+      _id: unknown;
+    };
+
+    return objectWithId._id
+      ? String(objectWithId._id)
+      : "";
+  }
+
+  return String(value);
 }
 
 export async function GET(request: Request) {
@@ -122,25 +215,20 @@ export async function GET(request: Request) {
 
     await connectDB();
 
-    /*
-     * Importing Department above registers the model
-     * before Ticket.populate("departmentId") is used.
-     *
-     * This prevents:
-     *
-     * Schema hasn't been registered for model "Department"
-     */
+    // Department is imported so Mongoose registers
+    // the model before populate() is used.
     void Department;
 
     // ---------------------------------------------
     // CURRENT USER
     // ---------------------------------------------
 
-    const currentUser = await User.findById(userId)
-      .select(
-        "_id name email role department isActive",
-      )
-      .lean();
+    const currentUser =
+      await User.findById(userId)
+        .select(
+          "_id name email role department isActive",
+        )
+        .lean();
 
     if (!currentUser) {
       return NextResponse.json(
@@ -162,11 +250,7 @@ export async function GET(request: Request) {
       );
     }
 
-    if (
-      !STAFF_ROLES.includes(
-        currentUser.role as (typeof STAFF_ROLES)[number],
-      )
-    ) {
+    if (currentUser.role !== "STAFF") {
       return NextResponse.json(
         {
           success: false,
@@ -198,36 +282,27 @@ export async function GET(request: Request) {
     // BUILD QUERY
     // ---------------------------------------------
 
-    const query: Record<string, any> = {};
+    const query: TicketQuery = {};
 
-    /*
-     * STAFF:
-     * Only tickets belonging to their department.
-     *
-     * MANAGER / ADMIN:
-     * Can see all tickets.
-     */
+    if (!currentUser.department) {
+      return NextResponse.json({
+        success: true,
 
-    if (currentUser.role === "STAFF") {
-      if (!currentUser.department) {
-        return NextResponse.json({
-          success: true,
+        user: {
+          id: currentUser._id.toString(),
+          name: currentUser.name,
+          email: currentUser.email,
+          role: currentUser.role,
+        },
 
-          user: {
-            id: currentUser._id.toString(),
-            name: currentUser.name,
-            email: currentUser.email,
-            role: currentUser.role,
-          },
+        stats: EMPTY_STATS,
 
-          stats: EMPTY_STATS,
-
-          tickets: [],
-        });
-      }
-
-      query.departmentId = currentUser.department;
+        tickets: [],
+      });
     }
+
+    query.departmentId =
+      currentUser.department;
 
     // ---------------------------------------------
     // STATUS FILTER
@@ -239,7 +314,8 @@ export async function GET(request: Request) {
         status as (typeof VALID_STATUSES)[number],
       )
     ) {
-      query.status = status;
+      query.status =
+        status as (typeof VALID_STATUSES)[number];
     }
 
     // ---------------------------------------------
@@ -252,7 +328,8 @@ export async function GET(request: Request) {
         priority as (typeof VALID_PRIORITIES)[number],
       )
     ) {
-      query.priority = priority;
+      query.priority =
+        priority as (typeof VALID_PRIORITIES)[number];
     }
 
     // ---------------------------------------------
@@ -286,42 +363,44 @@ export async function GET(request: Request) {
     // FETCH TICKETS
     // ---------------------------------------------
 
-    const tickets = await Ticket.find(query)
-      .populate(
-        "studentId",
-        "name email",
-      )
-      .populate(
-        "assignedTo",
-        "name email role",
-      )
-      .populate(
-        "departmentId",
-        "name",
-      )
-      .sort({
-        createdAt: -1,
-      })
-      .lean();
+    const tickets =
+      (await Ticket.find(query as Parameters<typeof Ticket.find>[0])
+        .populate(
+          "studentId",
+          "name email",
+        )
+        .populate(
+          "assignedTo",
+          "name email role",
+        )
+        .populate(
+          "departmentId",
+          "name",
+        )
+        .sort({
+          createdAt: -1,
+        })
+        .lean()) as unknown as PopulatedTicket[];
 
     // ---------------------------------------------
     // ENRICH TICKETS
     // ---------------------------------------------
 
-    const enrichedTickets = tickets.map(
-      (ticket: any) => {
+    const enrichedTickets =
+      tickets.map((ticket) => {
         let resolutionDueAt =
           ticket.sla?.resolutionDueAt;
 
-        /*
-         * Existing/old tickets may not have SLA data.
-         * Generate a fallback from priority.
-         */
-
         if (!resolutionDueAt) {
+          const priorityKey =
+            VALID_PRIORITIES.includes(
+              ticket.priority as (typeof VALID_PRIORITIES)[number],
+            )
+              ? (ticket.priority as (typeof VALID_PRIORITIES)[number])
+              : "MEDIUM";
+
           const hours =
-            SLA_HOURS[ticket.priority] ||
-            SLA_HOURS.MEDIUM;
+            SLA_HOURS[priorityKey];
 
           resolutionDueAt = new Date(
             new Date(
@@ -341,37 +420,14 @@ export async function GET(request: Request) {
 
         const slaStatus =
           getSlaStatus({
-            ...ticket,
+            status: ticket.status,
             sla,
           });
 
         return {
           ...ticket,
 
-          _id: ticket._id.toString(),
-
-          ticketNumber:
-            ticket.ticketNumber,
-
-          subject: ticket.subject,
-
-          description:
-            ticket.description,
-
-          category:
-            ticket.category,
-
-          priority:
-            ticket.priority,
-
-          status:
-            ticket.status,
-
-          createdAt:
-            ticket.createdAt,
-
-          updatedAt:
-            ticket.updatedAt,
+          _id: String(ticket._id),
 
           age: getAge(
             ticket.createdAt,
@@ -384,50 +440,49 @@ export async function GET(request: Request) {
           studentId:
             ticket.studentId
               ? {
-                  _id:
-                    ticket.studentId._id
-                      ?.toString(),
-
+                  _id: getIdString(
+                    ticket.studentId._id,
+                  ),
                   name:
-                    ticket.studentId.name,
-
+                    ticket.studentId.name ||
+                    "",
                   email:
-                    ticket.studentId.email,
+                    ticket.studentId.email ||
+                    "",
                 }
               : null,
 
           assignedTo:
             ticket.assignedTo
               ? {
-                  _id:
-                    ticket.assignedTo._id
-                      ?.toString(),
-
+                  _id: getIdString(
+                    ticket.assignedTo._id,
+                  ),
                   name:
-                    ticket.assignedTo.name,
-
+                    ticket.assignedTo.name ||
+                    "",
                   email:
-                    ticket.assignedTo.email,
-
+                    ticket.assignedTo.email ||
+                    "",
                   role:
-                    ticket.assignedTo.role,
+                    ticket.assignedTo.role ||
+                    "",
                 }
               : null,
 
           departmentId:
             ticket.departmentId
               ? {
-                  _id:
-                    ticket.departmentId._id
-                      ?.toString(),
-
+                  _id: getIdString(
+                    ticket.departmentId._id,
+                  ),
                   name:
-                    ticket.departmentId.name,
+                    ticket.departmentId.name ||
+                    "",
                 }
               : null,
         };
-      },
-    );
+      });
 
     // ---------------------------------------------
     // STATS
@@ -518,8 +573,7 @@ export async function GET(request: Request) {
 
       stats,
 
-      tickets:
-        enrichedTickets,
+      tickets: enrichedTickets,
     });
   } catch (error) {
     console.error(
@@ -533,9 +587,12 @@ export async function GET(request: Request) {
         message:
           "Failed to load staff tickets",
         error:
-          error instanceof Error
-            ? error.message
-            : String(error),
+          process.env.NODE_ENV ===
+          "development"
+            ? error instanceof Error
+              ? error.message
+              : String(error)
+            : undefined,
       },
       { status: 500 },
     );

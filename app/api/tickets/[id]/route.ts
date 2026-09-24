@@ -6,11 +6,7 @@ import User from "@/models/User";
 import Department from "@/models/Department";
 import { getSessionUserId } from "@/lib/auth";
 
-const STAFF_ROLES = [
-  "STAFF",
-  "MANAGER",
-  "ADMIN",
-] as const;
+const STAFF_ROLES = ["STAFF"] as const;
 
 const VALID_STATUSES = [
   "NEW",
@@ -29,21 +25,6 @@ const VALID_PRIORITIES = [
   "URGENT",
 ] as const;
 
-const ACTIVITY_TYPES = [
-  "CREATED",
-  "ASSIGNED",
-  "RESOLVED",
-  "CLOSED",
-  "REASSIGNED",
-  "STATUS_CHANGED",
-  "PRIORITY_CHANGED",
-  "COMMENT_ADDED",
-  "PENDING",
-  "RESUMED",
-  "REOPENED",
-  "ESCALATED",
-] as const;
-
 const SLA_HOURS: Record<string, number> = {
   LOW: 72,
   MEDIUM: 48,
@@ -51,7 +32,22 @@ const SLA_HOURS: Record<string, number> = {
   URGENT: 8,
 };
 
-type ActivityType = (typeof ACTIVITY_TYPES)[number];
+type TicketStatus = (typeof VALID_STATUSES)[number];
+type TicketPriority = (typeof VALID_PRIORITIES)[number];
+
+type ActivityType =
+  | "CREATED"
+  | "ASSIGNED"
+  | "RESOLVED"
+  | "CLOSED"
+  | "REASSIGNED"
+  | "STATUS_CHANGED"
+  | "PRIORITY_CHANGED"
+  | "COMMENT_ADDED"
+  | "PENDING"
+  | "RESUMED"
+  | "REOPENED"
+  | "ESCALATED";
 
 type RouteContext = {
   params: Promise<{
@@ -59,42 +55,120 @@ type RouteContext = {
   }>;
 };
 
-function isStaffRole(role: string) {
+type TicketActivityInput = {
+  type: ActivityType;
+  comment: string;
+};
+
+type TicketBody = {
+  status?: unknown;
+  priority?: unknown;
+  assignedTo?: unknown;
+  departmentId?: unknown;
+  comment?: unknown;
+  resolutionSummary?: unknown;
+};
+
+type PopulatedPerson = {
+  _id?: unknown;
+  name?: string;
+  email?: string;
+  role?: string;
+  department?: unknown;
+};
+
+type PopulatedDepartment = {
+  _id?: unknown;
+  name?: string;
+  description?: string;
+};
+
+type TicketLike = {
+  _id?: unknown;
+  createdAt: Date | string;
+  status: string;
+  priority: string;
+  studentId?: PopulatedPerson | unknown | null;
+  assignedTo?: PopulatedPerson | unknown | null;
+  departmentId?: PopulatedDepartment | unknown | null;
+  sla?: {
+    responseDueAt?: Date | string | null;
+    resolutionDueAt?: Date | string | null;
+    respondedAt?: Date | string | null;
+    resolvedAt?: Date | string | null;
+    [key: string]: unknown;
+  } | null;
+  resolution?: {
+    resolvedBy?: unknown;
+    resolvedAt?: Date | string | null;
+    summary?: string;
+    [key: string]: unknown;
+  } | null;
+  [key: string]: unknown;
+};
+
+function isStaffRole(role: string): boolean {
   return STAFF_ROLES.includes(
     role as (typeof STAFF_ROLES)[number],
   );
 }
 
-function isValidObjectId(id: string) {
+function isValidObjectId(id: string): boolean {
   return /^[a-fA-F0-9]{24}$/.test(id);
 }
 
-function calculateAge(createdAt: Date | string) {
+function isTicketStatus(value: unknown): value is TicketStatus {
+  return (
+    typeof value === "string" &&
+    VALID_STATUSES.includes(value as TicketStatus)
+  );
+}
+
+function isTicketPriority(
+  value: unknown,
+): value is TicketPriority {
+  return (
+    typeof value === "string" &&
+    VALID_PRIORITIES.includes(value as TicketPriority)
+  );
+}
+
+function getIdString(value: unknown): string | null {
+  if (!value) {
+    return null;
+  }
+
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "_id" in value
+  ) {
+    const objectWithId = value as { _id?: unknown };
+
+    if (objectWithId._id) {
+      return String(objectWithId._id);
+    }
+  }
+
+  return String(value);
+}
+
+function calculateAge(createdAt: Date | string): string {
   const createdTime = new Date(createdAt).getTime();
 
   if (Number.isNaN(createdTime)) {
     return "0m";
   }
 
-  const difference = Math.max(
-    0,
-    Date.now() - createdTime,
-  );
+  const difference = Math.max(0, Date.now() - createdTime);
 
   const totalMinutes = Math.floor(
     difference / (1000 * 60),
   );
 
-  const totalHours = Math.floor(
-    totalMinutes / 60,
-  );
-
-  const days = Math.floor(
-    totalHours / 24,
-  );
-
+  const totalHours = Math.floor(totalMinutes / 60);
+  const days = Math.floor(totalHours / 24);
   const hours = totalHours % 24;
-
   const minutes = totalMinutes % 60;
 
   if (days > 0) {
@@ -108,7 +182,9 @@ function calculateAge(createdAt: Date | string) {
   return `${minutes}m`;
 }
 
-function calculateSlaStatus(ticket: any) {
+function calculateSlaStatus(
+  ticket: TicketLike,
+): string {
   if (
     ticket.status === "RESOLVED" ||
     ticket.status === "CLOSED"
@@ -116,15 +192,13 @@ function calculateSlaStatus(ticket: any) {
     return "COMPLETED";
   }
 
-  const dueAt =
-    ticket.sla?.resolutionDueAt;
+  const dueAt = ticket.sla?.resolutionDueAt;
 
   if (!dueAt) {
     return "NO_SLA";
   }
 
-  const dueTime =
-    new Date(dueAt).getTime();
+  const dueTime = new Date(dueAt).getTime();
 
   if (Number.isNaN(dueTime)) {
     return "NO_SLA";
@@ -137,8 +211,7 @@ function calculateSlaStatus(ticket: any) {
   }
 
   const remainingHours =
-    (dueTime - now) /
-    (1000 * 60 * 60);
+    (dueTime - now) / (1000 * 60 * 60);
 
   if (remainingHours <= 4) {
     return "AT_RISK";
@@ -150,26 +223,72 @@ function calculateSlaStatus(ticket: any) {
 function getFallbackResolutionDueAt(
   createdAt: Date | string,
   priority: string,
-) {
+): Date {
   const hours =
-    SLA_HOURS[priority] ||
-    SLA_HOURS.MEDIUM;
+    SLA_HOURS[priority] ?? SLA_HOURS.MEDIUM;
 
   const createdTime =
     new Date(createdAt).getTime();
 
   return new Date(
     createdTime +
-      hours *
-        60 *
-        60 *
-        1000,
+      hours * 60 * 60 * 1000,
   );
 }
 
-function serializeTicket(ticket: any) {
+function getPopulatedPerson(
+  value: unknown,
+): {
+  _id?: string;
+  name: string;
+  email: string;
+  role: string;
+} | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const person = value as PopulatedPerson;
+
+  return {
+    _id: person._id
+      ? String(person._id)
+      : undefined,
+    name: person.name ?? "",
+    email: person.email ?? "",
+    role: person.role ?? "",
+  };
+}
+
+function getPopulatedDepartment(
+  value: unknown,
+): {
+  _id?: string;
+  name: string;
+  description: string;
+} | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const department =
+    value as PopulatedDepartment;
+
+  return {
+    _id: department._id
+      ? String(department._id)
+      : undefined,
+    name: department.name ?? "",
+    description:
+      department.description ?? "",
+  };
+}
+
+function serializeTicket(
+  ticket: TicketLike,
+) {
   const resolutionDueAt =
-    ticket.sla?.resolutionDueAt ||
+    ticket.sla?.resolutionDueAt ??
     getFallbackResolutionDueAt(
       ticket.createdAt,
       ticket.priority,
@@ -179,59 +298,31 @@ function serializeTicket(ticket: any) {
     ...ticket,
 
     _id: ticket._id
-      ? ticket._id.toString()
+      ? String(ticket._id)
       : undefined,
 
-    studentId: ticket.studentId
-      ? {
-          _id: ticket.studentId._id
-            ? ticket.studentId._id.toString()
-            : undefined,
-          name:
-            ticket.studentId.name || "",
-          email:
-            ticket.studentId.email || "",
-          role:
-            ticket.studentId.role || "STUDENT",
-        }
-      : null,
+    studentId: getPopulatedPerson(
+      ticket.studentId,
+    ),
 
-    assignedTo: ticket.assignedTo
-      ? {
-          _id: ticket.assignedTo._id
-            ? ticket.assignedTo._id.toString()
-            : undefined,
-          name:
-            ticket.assignedTo.name || "",
-          email:
-            ticket.assignedTo.email || "",
-          role:
-            ticket.assignedTo.role || "",
-        }
-      : null,
+    assignedTo: getPopulatedPerson(
+      ticket.assignedTo,
+    ),
 
-    departmentId: ticket.departmentId
-      ? {
-          _id: ticket.departmentId._id
-            ? ticket.departmentId._id.toString()
-            : undefined,
-          name:
-            ticket.departmentId.name || "",
-          description:
-            ticket.departmentId.description ||
-            "",
-        }
-      : null,
+    departmentId:
+      getPopulatedDepartment(
+        ticket.departmentId,
+      ),
 
     sla: {
-      ...(ticket.sla || {}),
+      ...(ticket.sla ?? {}),
       responseDueAt:
-        ticket.sla?.responseDueAt || null,
+        ticket.sla?.responseDueAt ?? null,
       resolutionDueAt,
       respondedAt:
-        ticket.sla?.respondedAt || null,
+        ticket.sla?.respondedAt ?? null,
       resolvedAt:
-        ticket.sla?.resolvedAt || null,
+        ticket.sla?.resolvedAt ?? null,
     },
 
     age: calculateAge(
@@ -241,9 +332,10 @@ function serializeTicket(ticket: any) {
 
   return {
     ...serialized,
-
     slaStatus:
-      calculateSlaStatus(serialized),
+      calculateSlaStatus(
+        serialized,
+      ),
   };
 }
 
@@ -271,31 +363,22 @@ async function getCurrentUser() {
   };
 }
 
-function getIdString(value: any) {
-  if (!value) {
-    return null;
-  }
-
-  if (
-    typeof value === "object" &&
-    value._id
-  ) {
-    return value._id.toString();
-  }
-
-  return value.toString();
-}
-
 function canAccessTicket(
-  user: any,
-  ticket: any,
-) {
+  user: {
+    _id: unknown;
+    role: string;
+    department?: unknown;
+  } | null,
+  ticket: {
+    studentId?: unknown;
+    departmentId?: unknown;
+  } | null,
+): boolean {
   if (!user || !ticket) {
     return false;
   }
 
-  const userId =
-    user._id.toString();
+  const userId = String(user._id);
 
   const studentId =
     getIdString(ticket.studentId);
@@ -306,87 +389,51 @@ function canAccessTicket(
   const userDepartment =
     getIdString(user.department);
 
-  /*
-   * STUDENT
-   *
-   * Students can only see their own tickets.
-   */
   if (user.role === "STUDENT") {
     return studentId === userId;
   }
 
-  /*
-   * MANAGER / ADMIN
-   *
-   * Management can see every ticket.
-   */
-  if (
-    user.role === "MANAGER" ||
-    user.role === "ADMIN"
-  ) {
-    return true;
-  }
-
-  /*
-   * STAFF
-   *
-   * Staff can see tickets belonging
-   * to their department.
-   */
   if (user.role === "STAFF") {
-    if (!userDepartment) {
+    if (!userDepartment || !departmentId) {
       return false;
     }
 
-    if (!departmentId) {
-      return false;
-    }
-
-    return (
-      departmentId ===
-      userDepartment
-    );
+    return departmentId === userDepartment;
   }
 
   return false;
 }
 
 function addActivity(
-  activities: Array<{
-    type: ActivityType;
-    comment: string;
-  }>,
+  activities: TicketActivityInput[],
   type: ActivityType,
   comment: string,
-) {
+): void {
   activities.push({
     type,
     comment,
   });
 }
 
+function getReadableStatus(
+  status: string,
+): string {
+  return status
+    .replaceAll("_", " ")
+    .toLowerCase();
+}
+
 /*
 |--------------------------------------------------------------------------
 | GET /api/tickets/[id]
 |--------------------------------------------------------------------------
-|
-| STUDENT
-|   Own tickets only.
-|
-| STAFF
-|   Tickets from their department.
-|
-| MANAGER
-|   All tickets.
-|
-| ADMIN
-|   All tickets.
-|
 */
 export async function GET(
   request: Request,
   context: RouteContext,
 ) {
+  void request;
+
   try {
     const { id } =
       await context.params;
@@ -413,12 +460,6 @@ export async function GET(
       );
     }
 
-    /*
-     * IMPORTANT:
-     *
-     * Authentication is checked before
-     * loading the ticket.
-     */
     const {
       userId,
       user,
@@ -448,13 +489,6 @@ export async function GET(
 
     await connectDB();
 
-    /*
-     * Importing Department at the top of this file
-     * registers the model before populate is used.
-     *
-     * The same applies to TicketActivity.
-     */
-
     const ticket =
       await Ticket.findById(id)
         .populate(
@@ -475,16 +509,12 @@ export async function GET(
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Ticket not found",
+          message: "Ticket not found",
         },
         { status: 404 },
       );
     }
 
-    /*
-     * Access control.
-     */
     if (
       !canAccessTicket(
         user,
@@ -501,9 +531,6 @@ export async function GET(
       );
     }
 
-    /*
-     * Activity history.
-     */
     const activities =
       await TicketActivity.find({
         ticketId: ticket._id,
@@ -518,58 +545,40 @@ export async function GET(
         .lean();
 
     const serializedActivities =
-      activities.map(
-        (activity: any) => ({
+      activities.map((activity) => {
+        const actor =
+          getPopulatedPerson(
+            activity.actorId,
+          );
+
+        return {
           ...activity,
-
-          _id:
-            activity._id
-              ? activity._id.toString()
-              : undefined,
-
-          ticketId:
-            activity.ticketId
-              ? activity.ticketId.toString()
-              : undefined,
-
-          actorId:
-            activity.actorId
-              ? {
-                  _id:
-                    activity.actorId
-                      ._id
-                      ?.toString(),
-                  name:
-                    activity.actorId
-                      .name || "",
-                  email:
-                    activity.actorId
-                      .email || "",
-                  role:
-                    activity.actorId
-                      .role || "",
-                }
-              : null,
-        }),
-      );
+          _id: String(activity._id),
+          ticketId: String(
+            activity.ticketId,
+          ),
+          actorId: actor,
+        };
+      });
 
     return NextResponse.json({
       success: true,
 
-      ticket:
-        serializeTicket(ticket),
+      ticket: serializeTicket(
+        ticket as unknown as TicketLike,
+      ),
 
       activities:
         serializedActivities,
 
       currentUser: {
-        id: user._id.toString(),
+        id: String(user._id),
         name: user.name,
         email: user.email,
         role: user.role,
         department:
           user.department
-            ? user.department.toString()
+            ? String(user.department)
             : null,
       },
     });
@@ -601,16 +610,6 @@ export async function GET(
 |--------------------------------------------------------------------------
 | PATCH /api/tickets/[id]
 |--------------------------------------------------------------------------
-|
-| Used for:
-|
-| - Status
-| - Priority
-| - Assignment
-| - Department
-| - Comments
-| - Resolution
-|
 */
 export async function PATCH(
   request: Request,
@@ -677,16 +676,12 @@ export async function PATCH(
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Ticket not found",
+          message: "Ticket not found",
         },
         { status: 404 },
       );
     }
 
-    /*
-     * Ticket access.
-     */
     if (
       !canAccessTicket(
         user,
@@ -704,7 +699,7 @@ export async function PATCH(
     }
 
     const body =
-      await request.json();
+      (await request.json()) as TicketBody;
 
     const {
       status,
@@ -715,10 +710,8 @@ export async function PATCH(
       resolutionSummary,
     } = body;
 
-    const activities: Array<{
-      type: ActivityType;
-      comment: string;
-    }> = [];
+    const activities: TicketActivityInput[] =
+      [];
 
     /*
      * ----------------------------------------------------
@@ -729,11 +722,7 @@ export async function PATCH(
       status !== undefined &&
       status !== ticket.status
     ) {
-      if (
-        !VALID_STATUSES.includes(
-          status,
-        )
-      ) {
+      if (!isTicketStatus(status)) {
         return NextResponse.json(
           {
             success: false,
@@ -744,12 +733,7 @@ export async function PATCH(
         );
       }
 
-      /*
-       * Students should not change workflow status.
-       */
-      if (
-        user.role === "STUDENT"
-      ) {
+      if (user.role === "STUDENT") {
         return NextResponse.json(
           {
             success: false,
@@ -765,33 +749,24 @@ export async function PATCH(
 
       ticket.status = status;
 
-      /*
-       * RESOLVED
-       */
-      if (
-        status === "RESOLVED"
-      ) {
-        const now =
-          new Date();
+      if (status === "RESOLVED") {
+        const now = new Date();
 
         ticket.sla = {
-          ...(ticket.sla || {}),
+          ...(ticket.sla ?? {}),
           resolvedAt: now,
         };
 
         ticket.resolution = {
-          ...(ticket.resolution || {}),
-          resolvedBy:
-            user._id,
-          resolvedAt:
-            now,
+          ...(ticket.resolution ?? {}),
+          resolvedBy: user._id,
+          resolvedAt: now,
           summary:
-            resolutionSummary
-              ?.toString()
-              .trim() ||
-            ticket.resolution
-              ?.summary ||
-            "",
+            typeof resolutionSummary ===
+              "string"
+              ? resolutionSummary.trim()
+              : ticket.resolution
+                  ?.summary ?? "",
         };
 
         addActivity(
@@ -799,12 +774,7 @@ export async function PATCH(
           "RESOLVED",
           `Ticket resolved. Previous status: ${oldStatus}.`,
         );
-      }
-
-      /*
-       * CLOSED
-       */
-      else if (
+      } else if (
         status === "CLOSED"
       ) {
         addActivity(
@@ -812,12 +782,7 @@ export async function PATCH(
           "CLOSED",
           `Ticket closed. Previous status: ${oldStatus}.`,
         );
-      }
-
-      /*
-       * PENDING
-       */
-      else if (
+      } else if (
         status ===
           "PENDING_STUDENT" ||
         status ===
@@ -826,38 +791,18 @@ export async function PATCH(
         addActivity(
           activities,
           "PENDING",
-          `Ticket moved to ${status
-            .replaceAll(
-              "_",
-              " ",
-            )
-            .toLowerCase()}.`,
+          `Ticket moved to ${getReadableStatus(status)}.`,
         );
-      }
-
-      /*
-       * REOPENED
-       */
-      else if (
+      } else if (
         oldStatus === "RESOLVED" ||
         oldStatus === "CLOSED"
       ) {
         addActivity(
           activities,
           "REOPENED",
-          `Ticket reopened and moved to ${status
-            .replaceAll(
-              "_",
-              " ",
-            )
-            .toLowerCase()}.`,
+          `Ticket reopened and moved to ${getReadableStatus(status)}.`,
         );
-      }
-
-      /*
-       * RESUMED
-       */
-      else if (
+      } else if (
         oldStatus ===
           "PENDING_STUDENT" ||
         oldStatus ===
@@ -866,31 +811,13 @@ export async function PATCH(
         addActivity(
           activities,
           "RESUMED",
-          `Ticket resumed and moved to ${status
-            .replaceAll(
-              "_",
-              " ",
-            )
-            .toLowerCase()}.`,
+          `Ticket resumed and moved to ${getReadableStatus(status)}.`,
         );
-      }
-
-      /*
-       * NORMAL STATUS CHANGE
-       */
-      else {
+      } else {
         addActivity(
           activities,
           "STATUS_CHANGED",
-          `Status changed from ${oldStatus
-            .replaceAll(
-              "_",
-              " ",
-            )} to ${status
-            .replaceAll(
-              "_",
-              " ",
-            )}.`,
+          `Status changed from ${getReadableStatus(oldStatus)} to ${getReadableStatus(status)}.`,
         );
       }
     }
@@ -904,11 +831,7 @@ export async function PATCH(
       priority !== undefined &&
       priority !== ticket.priority
     ) {
-      if (
-        !VALID_PRIORITIES.includes(
-          priority,
-        )
-      ) {
+      if (!isTicketPriority(priority)) {
         return NextResponse.json(
           {
             success: false,
@@ -919,9 +842,7 @@ export async function PATCH(
         );
       }
 
-      if (
-        user.role === "STUDENT"
-      ) {
+      if (user.role === "STUDENT") {
         return NextResponse.json(
           {
             success: false,
@@ -935,28 +856,20 @@ export async function PATCH(
       const oldPriority =
         ticket.priority;
 
-      ticket.priority =
-        priority;
+      ticket.priority = priority;
 
-      /*
-       * Recalculate SLA for active tickets.
-       */
       if (
-        ticket.status !==
-          "RESOLVED" &&
-        ticket.status !==
-          "CLOSED"
+        ticket.status !== "RESOLVED" &&
+        ticket.status !== "CLOSED"
       ) {
         ticket.sla = {
-          ...(ticket.sla || {}),
+          ...(ticket.sla ?? {}),
           resolutionDueAt:
             new Date(
               new Date(
                 ticket.createdAt,
               ).getTime() +
-                SLA_HOURS[
-                  priority
-                ] *
+                SLA_HOURS[priority] *
                   60 *
                   60 *
                   1000,
@@ -979,9 +892,7 @@ export async function PATCH(
     if (
       assignedTo !== undefined
     ) {
-      if (
-        user.role === "STUDENT"
-      ) {
+      if (user.role === "STUDENT") {
         return NextResponse.json(
           {
             success: false,
@@ -992,14 +903,14 @@ export async function PATCH(
         );
       }
 
-      const oldAssignedTo =
-        ticket.assignedTo
-          ? ticket.assignedTo.toString()
-          : null;
-
       const newAssignedTo =
         assignedTo
           ? String(assignedTo)
+          : null;
+
+      const oldAssignedTo =
+        ticket.assignedTo
+          ? String(ticket.assignedTo)
           : null;
 
       if (
@@ -1042,9 +953,7 @@ export async function PATCH(
             );
           }
 
-          if (
-            !assignedUser.isActive
-          ) {
+          if (!assignedUser.isActive) {
             return NextResponse.json(
               {
                 success: false,
@@ -1064,22 +973,14 @@ export async function PATCH(
               {
                 success: false,
                 message:
-                  "Ticket can only be assigned to staff, manager or admin",
+                  "Tickets can only be assigned to staff members",
               },
               { status: 400 },
             );
           }
 
-          /*
-           * STAFF can only assign within
-           * their own department.
-           */
-          if (
-            user.role === "STAFF"
-          ) {
-            if (
-              !user.department
-            ) {
+          if (user.role === "STAFF") {
+            if (!user.department) {
               return NextResponse.json(
                 {
                   success: false,
@@ -1092,8 +993,10 @@ export async function PATCH(
 
             if (
               !assignedUser.department ||
-              assignedUser.department.toString() !==
-                user.department.toString()
+              String(
+                assignedUser.department,
+              ) !==
+                String(user.department)
             ) {
               return NextResponse.json(
                 {
@@ -1109,14 +1012,10 @@ export async function PATCH(
           ticket.assignedTo =
             assignedUser._id;
 
-          /*
-           * NEW -> ASSIGNED
-           */
           if (
             ticket.status === "NEW"
           ) {
-            ticket.status =
-              "ASSIGNED";
+            ticket.status = "ASSIGNED";
 
             addActivity(
               activities,
@@ -1155,15 +1054,13 @@ export async function PATCH(
     if (
       departmentId !== undefined &&
       String(
-        departmentId || "",
+        departmentId ?? "",
       ) !==
         String(
-          ticket.departmentId || "",
+          ticket.departmentId ?? "",
         )
     ) {
-      if (
-        user.role === "STUDENT"
-      ) {
+      if (user.role === "STUDENT") {
         return NextResponse.json(
           {
             success: false,
@@ -1174,14 +1071,13 @@ export async function PATCH(
         );
       }
 
-      if (
-        departmentId
-      ) {
+      if (departmentId) {
+        const newDepartmentId =
+          String(departmentId);
+
         if (
           !isValidObjectId(
-            String(
-              departmentId,
-            ),
+            newDepartmentId,
           )
         ) {
           return NextResponse.json(
@@ -1196,7 +1092,7 @@ export async function PATCH(
 
         const department =
           await Department.findById(
-            departmentId,
+            newDepartmentId,
           )
             .select(
               "_id name isActive",
@@ -1228,16 +1124,16 @@ export async function PATCH(
           );
         }
 
-        /*
-         * STAFF cannot transfer
-         * to another department.
-         */
         if (
           user.role === "STAFF" &&
           (
             !user.department ||
-            user.department.toString() !==
-              department._id.toString()
+            String(
+              user.department,
+            ) !==
+              String(
+                department._id,
+              )
           )
         ) {
           return NextResponse.json(
@@ -1253,13 +1149,7 @@ export async function PATCH(
         ticket.departmentId =
           department._id;
 
-        /*
-         * Existing assignment may no longer
-         * belong to the new department.
-         */
-        if (
-          ticket.assignedTo
-        ) {
+        if (ticket.assignedTo) {
           const assignedUser =
             await User.findById(
               ticket.assignedTo,
@@ -1272,8 +1162,12 @@ export async function PATCH(
           if (
             assignedUser &&
             assignedUser.department &&
-            assignedUser.department.toString() !==
-              department._id.toString()
+            String(
+              assignedUser.department,
+            ) !==
+              String(
+                department._id,
+              )
           ) {
             ticket.assignedTo =
               undefined;
@@ -1314,12 +1208,9 @@ export async function PATCH(
     if (
       resolutionSummary !==
         undefined &&
-      resolutionSummary !==
-        null
+      resolutionSummary !== null
     ) {
-      if (
-        user.role === "STUDENT"
-      ) {
+      if (user.role === "STUDENT") {
         return NextResponse.json(
           {
             success: false,
@@ -1342,7 +1233,7 @@ export async function PATCH(
             ?.summary
       ) {
         ticket.resolution = {
-          ...(ticket.resolution || {}),
+          ...(ticket.resolution ?? {}),
           summary,
         };
       }
@@ -1375,33 +1266,30 @@ export async function PATCH(
      * ----------------------------------------------------
      */
     if (
-      ticket.status ===
-      "RESOLVED"
+      ticket.status === "RESOLVED"
     ) {
-      const now =
-        new Date();
+      const now = new Date();
 
       ticket.sla = {
-        ...(ticket.sla || {}),
+        ...(ticket.sla ?? {}),
         resolvedAt:
-          ticket.sla?.resolvedAt ||
+          ticket.sla?.resolvedAt ??
           now,
       };
 
       ticket.resolution = {
-        ...(ticket.resolution || {}),
+        ...(ticket.resolution ?? {}),
         resolvedBy:
           ticket.resolution
-            ?.resolvedBy ||
+            ?.resolvedBy ??
           user._id,
         resolvedAt:
           ticket.resolution
-            ?.resolvedAt ||
+            ?.resolvedAt ??
           now,
         summary:
           ticket.resolution
-            ?.summary ||
-          "",
+            ?.summary ?? "",
       };
     }
 
@@ -1411,39 +1299,23 @@ export async function PATCH(
      * ----------------------------------------------------
      */
     if (
-      ticket.status !==
-        "NEW" &&
+      ticket.status !== "NEW" &&
       !ticket.sla?.respondedAt
     ) {
       ticket.sla = {
-        ...(ticket.sla || {}),
-        respondedAt:
-          new Date(),
+        ...(ticket.sla ?? {}),
+        respondedAt: new Date(),
       };
     }
 
     /*
      * ----------------------------------------------------
-     * SAVE TICKET
+     * SAVE
      * ----------------------------------------------------
      */
     await ticket.save();
 
-    /*
-     * ----------------------------------------------------
-     * SAVE ACTIVITIES
-     * ----------------------------------------------------
-     *
-     * IMPORTANT:
-     * There is intentionally NO "UPDATED"
-     * activity type here.
-     *
-     * Your TicketActivity model does not support
-     * "UPDATED".
-     */
-    if (
-      activities.length > 0
-    ) {
+    if (activities.length > 0) {
       await TicketActivity.insertMany(
         activities.map(
           (activity) => ({
@@ -1494,14 +1366,11 @@ export async function PATCH(
 
     return NextResponse.json({
       success: true,
-
       message:
         "Ticket updated successfully",
-
-      ticket:
-        serializeTicket(
-          updatedTicket,
-        ),
+      ticket: serializeTicket(
+        updatedTicket as unknown as TicketLike,
+      ),
     });
   } catch (error) {
     console.error(
@@ -1512,10 +1381,8 @@ export async function PATCH(
     return NextResponse.json(
       {
         success: false,
-
         message:
           "Failed to update ticket",
-
         error:
           process.env.NODE_ENV ===
           "development"
@@ -1533,14 +1400,13 @@ export async function PATCH(
 |--------------------------------------------------------------------------
 | DELETE /api/tickets/[id]
 |--------------------------------------------------------------------------
-|
-| ADMIN ONLY
-|
 */
 export async function DELETE(
   request: Request,
   context: RouteContext,
 ) {
+  void request;
+
   try {
     const { id } =
       await context.params;
@@ -1593,19 +1459,6 @@ export async function DELETE(
       );
     }
 
-    if (
-      user.role !== "ADMIN"
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Only administrators can delete tickets",
-        },
-        { status: 403 },
-      );
-    }
-
     await connectDB();
 
     const ticket =
@@ -1615,30 +1468,33 @@ export async function DELETE(
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Ticket not found",
+          message: "Ticket not found",
         },
         { status: 404 },
       );
     }
 
-    /*
-     * Record the deletion as CLOSED before
-     * removing the ticket.
-     */
-    await TicketActivity.create({
-      ticketId:
-        ticket._id,
-      actorId:
-        user._id,
-      type: "CLOSED",
-      comment:
-        "Ticket deleted by administrator.",
-    });
+    if (
+      !canAccessTicket(
+        user,
+        ticket,
+      )
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "You are not authorized to delete this ticket",
+        },
+        { status: 403 },
+      );
+    }
 
-    await Ticket.findByIdAndDelete(
-      id,
-    );
+    await Ticket.findByIdAndDelete(id);
+
+    await TicketActivity.deleteMany({
+      ticketId: ticket._id,
+    });
 
     return NextResponse.json({
       success: true,

@@ -1,7 +1,8 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, type FormEvent, useEffect, useState } from "react";
 
 const categories = [
   {
@@ -87,14 +88,21 @@ const priorities = [
   },
 ];
 
-export default function NewTicketPage() {
+type FormState = {
+  subject: string;
+  description: string;
+  category: string;
+  priority: string;
+};
+
+function NewTicketForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const categoryFromUrl = searchParams.get("category");
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<FormState>({
     subject: "",
     description: "",
     category: "",
@@ -102,22 +110,64 @@ export default function NewTicketPage() {
   });
 
   useEffect(() => {
-    if (
-      categoryFromUrl &&
-      categories.some((category) => category.value === categoryFromUrl)
-    ) {
-      setForm((current) => ({
-        ...current,
-        category: categoryFromUrl,
-      }));
-    }
-  }, [categoryFromUrl]);
+    const category = searchParams.get("category");
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+    if (!category) {
+      return;
+    }
+
+    const isValidCategory = categories.some((item) => item.value === category);
+
+    if (!isValidCategory) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setForm((current) => {
+        if (current.category === category) {
+          return current;
+        }
+
+        return {
+          ...current,
+          category,
+        };
+      });
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [searchParams]);
+
+  const updateForm = <K extends keyof FormState>(
+    field: K,
+    value: FormState[K],
+  ) => {
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const subject = form.subject.trim();
+    const description = form.description.trim();
+
+    if (!subject) {
+      setMessage("Please enter a subject.");
+      return;
+    }
 
     if (!form.category) {
       setMessage("Please select a category.");
+      return;
+    }
+
+    if (!description) {
+      setMessage("Please describe your issue.");
       return;
     }
 
@@ -130,17 +180,26 @@ export default function NewTicketPage() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({
-          subject: form.subject,
-          description: form.description,
+          subject,
+          description,
           category: form.category,
           priority: form.priority,
         }),
       });
 
-      const data = await response.json();
+      const data: {
+        success?: boolean;
+        message?: string;
+      } = await response.json();
 
       if (!response.ok) {
+        if (response.status === 401) {
+          router.push("/login");
+          return;
+        }
+
         throw new Error(data.message || "Failed to create ticket");
       }
 
@@ -163,7 +222,6 @@ export default function NewTicketPage() {
 
   return (
     <main className="min-h-screen bg-[#f6f8fc]">
-      {/* Header */}
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
@@ -172,9 +230,7 @@ export default function NewTicketPage() {
             </div>
 
             <div>
-              <p className="font-semibold text-slate-900">
-                Student Support
-              </p>
+              <p className="font-semibold text-slate-900">Student Support</p>
 
               <p className="hidden text-xs text-slate-500 sm:block">
                 Support & Ticket Management
@@ -189,25 +245,23 @@ export default function NewTicketPage() {
 
             <div>
               <p className="text-sm font-medium text-slate-800">Student</p>
+
               <p className="text-xs text-slate-500">Student Portal</p>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Page */}
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
-        {/* Breadcrumb */}
         <div className="mb-6">
-          <a
+          <Link
             href="/"
             className="text-sm font-medium text-slate-500 transition hover:text-blue-600"
           >
             ← Back to Support
-          </a>
+          </Link>
         </div>
 
-        {/* Hero */}
         <div className="mb-8 sm:mb-10">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
             <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
@@ -225,12 +279,10 @@ export default function NewTicketPage() {
         </div>
 
         <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
-          {/* Main Form */}
           <form
             onSubmit={handleSubmit}
             className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8"
           >
-            {/* Subject */}
             <div className="mb-8">
               <label className="mb-2 block text-sm font-semibold text-slate-800">
                 What do you need help with?
@@ -239,19 +291,13 @@ export default function NewTicketPage() {
               <input
                 type="text"
                 value={form.subject}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    subject: e.target.value,
-                  })
-                }
+                onChange={(event) => updateForm("subject", event.target.value)}
                 placeholder="e.g. Fee payment was deducted but status is pending"
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50"
                 required
               />
             </div>
 
-            {/* Category */}
             <div className="mb-8">
               <div className="mb-3">
                 <label className="block text-sm font-semibold text-slate-800">
@@ -271,12 +317,7 @@ export default function NewTicketPage() {
                     <button
                       key={category.value}
                       type="button"
-                      onClick={() =>
-                        setForm({
-                          ...form,
-                          category: category.value,
-                        })
-                      }
+                      onClick={() => updateForm("category", category.value)}
                       className={`rounded-xl border p-4 text-left transition ${
                         selected
                           ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
@@ -310,7 +351,6 @@ export default function NewTicketPage() {
               </div>
             </div>
 
-            {/* Description */}
             <div className="mb-8">
               <label className="mb-2 block text-sm font-semibold text-slate-800">
                 Describe your issue
@@ -318,11 +358,8 @@ export default function NewTicketPage() {
 
               <textarea
                 value={form.description}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    description: e.target.value,
-                  })
+                onChange={(event) =>
+                  updateForm("description", event.target.value)
                 }
                 placeholder="Please provide any details that can help our support team understand and resolve your request..."
                 rows={6}
@@ -336,7 +373,6 @@ export default function NewTicketPage() {
               </p>
             </div>
 
-            {/* Priority */}
             <div className="mb-8">
               <div className="mb-3">
                 <label className="block text-sm font-semibold text-slate-800">
@@ -356,12 +392,7 @@ export default function NewTicketPage() {
                     <button
                       key={priority.value}
                       type="button"
-                      onClick={() =>
-                        setForm({
-                          ...form,
-                          priority: priority.value,
-                        })
-                      }
+                      onClick={() => updateForm("priority", priority.value)}
                       className={`rounded-xl border p-4 text-left transition ${
                         selected
                           ? `${priority.color} ring-2 ring-blue-100`
@@ -385,7 +416,6 @@ export default function NewTicketPage() {
               </div>
             </div>
 
-            {/* Submit */}
             <div className="border-t border-slate-100 pt-6">
               <button
                 type="submit"
@@ -411,9 +441,7 @@ export default function NewTicketPage() {
             </div>
           </form>
 
-          {/* Sidebar */}
           <aside className="space-y-5">
-            {/* Help card */}
             <div className="rounded-2xl bg-slate-900 p-6 text-white shadow-sm">
               <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-xl">
                 ?
@@ -444,7 +472,6 @@ export default function NewTicketPage() {
               </div>
             </div>
 
-            {/* Workflow */}
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50 text-green-600">
@@ -513,7 +540,6 @@ export default function NewTicketPage() {
               </div>
             </div>
 
-            {/* Security */}
             <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs leading-5 text-slate-500">
               🔒 Your support requests are visible only to you and authorized
               support staff.
@@ -522,5 +548,13 @@ export default function NewTicketPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function NewTicketPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#f6f8fc]" />}>
+      <NewTicketForm />
+    </Suspense>
   );
 }

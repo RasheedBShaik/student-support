@@ -42,7 +42,7 @@ export async function middleware(request: NextRequest) {
      * Therefore middleware cannot determine the user's role.
      *
      * We allow the request through here and let the /api/staff/tickets
-     * route perform the actual STAFF/MANAGER/ADMIN authorization.
+     * route perform the actual STAFF authorization.
      */
     return NextResponse.next();
   } catch {

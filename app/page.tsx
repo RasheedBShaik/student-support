@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/dist/client/link";
 
 type User = {
   id: string;
   name: string;
   email: string;
-  role: "STUDENT" | "STAFF" | "MANAGER" | "ADMIN";
+  role: "STUDENT" | "STAFF";
 };
 
 const studentCategories = [
@@ -98,10 +99,7 @@ function roleLabel(role: User["role"]) {
   switch (role) {
     case "STAFF":
       return "Staff";
-    case "MANAGER":
-      return "Manager";
-    case "ADMIN":
-      return "Administrator";
+    
     default:
       return "Student";
   }
@@ -111,10 +109,6 @@ function roleDescription(role: User["role"]) {
   switch (role) {
     case "STAFF":
       return "Manage student support requests and ticket operations.";
-    case "MANAGER":
-      return "Monitor support operations, ownership and SLA performance.";
-    case "ADMIN":
-      return "Manage and monitor the complete support operation.";
     default:
       return "Create requests, track progress and view resolutions.";
   }
@@ -172,13 +166,11 @@ export default function Home() {
   };
 
   const isStaff =
-    user?.role === "STAFF" ||
-    user?.role === "MANAGER" ||
-    user?.role === "ADMIN";
-
+    user?.role === "STAFF";
+    
   /*
    * -------------------------------------------------------
-   * LOGGED-IN STAFF / MANAGER / ADMIN HOME
+   * LOGGED-IN STAFF
    * -------------------------------------------------------
    */
 
@@ -188,7 +180,7 @@ export default function Home() {
         {/* Header */}
         <header className="border-b border-slate-200 bg-white">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
-            <a href="/" className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white shadow-sm">
                 SS
               </div>
@@ -202,7 +194,7 @@ export default function Home() {
                   Staff Management Portal
                 </p>
               </div>
-            </a>
+            </Link>
 
             <nav className="flex items-center gap-2">
               <span className="hidden text-sm font-semibold text-slate-700 sm:inline">
@@ -390,7 +382,7 @@ export default function Home() {
       {/* Header */}
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
-          <a href="/" className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white shadow-sm">
               SS
             </div>
@@ -404,7 +396,7 @@ export default function Home() {
                 Support & Ticket Management
               </p>
             </div>
-          </a>
+          </Link>
 
           <nav className="flex items-center gap-2 sm:gap-3">
             {!checkingAuth && user ? (
@@ -413,12 +405,12 @@ export default function Home() {
                   Hi, {user.name}
                 </span>
 
-                <a
+                <Link
                   href="/tickets"
                   className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
                 >
                   My Tickets
-                </a>
+                </Link>
 
                 <button
                   type="button"
@@ -431,25 +423,25 @@ export default function Home() {
               </>
             ) : !checkingAuth ? (
               <>
-                <a
+                <Link
                   href="/login"
                   className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 sm:px-4"
                 >
                   Student Login
-                </a>
+                </Link>
 
-                <a
+                <Link
                   href="/login"
                   className="hidden rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 sm:inline-flex sm:px-4"
                 >
                   Staff Login
-                </a>
+                </Link>
               </>
             ) : (
               <div className="h-9 w-28 animate-pulse rounded-xl bg-slate-100" />
             )}
 
-            <a
+            <Link
               href="/tickets/new"
               className="rounded-xl bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:px-4"
             >
@@ -457,7 +449,7 @@ export default function Home() {
               <span className="hidden sm:inline">
                 + New Request
               </span>
-            </a>
+            </Link>
           </nav>
         </div>
       </header>
@@ -486,20 +478,20 @@ export default function Home() {
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <a
+                <Link
                   href="/tickets/new"
                   className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
                 >
                   Create Support Request
                   <span className="ml-2">→</span>
-                </a>
+                </Link>
 
-                <a
+                <Link
                   href="/tickets"
                   className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
                 >
                   View My Tickets
-                </a>
+                </Link>
               </div>
             </div>
 
@@ -606,7 +598,7 @@ export default function Home() {
 
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {studentCategories.map((category) => (
-              <a
+              <Link
                 key={category.title}
                 href={`/tickets/new?category=${category.category}`}
                 className="group rounded-2xl border border-slate-200 bg-white p-5 transition duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50/30 hover:shadow-lg hover:shadow-slate-200/50"
@@ -622,7 +614,7 @@ export default function Home() {
                 <p className="mt-1.5 text-sm leading-5 text-slate-500">
                   {category.description}
                 </p>
-              </a>
+              </Link>
             ))}
           </div>
         </div>
@@ -643,18 +635,18 @@ export default function Home() {
                 </h2>
 
                 <p className="mt-2 max-w-xl text-sm leading-6 text-slate-400">
-                  Staff, managers and administrators can sign in
+                  Staff can sign in
                   to manage the ticket queue, assignments, SLAs and
                   resolutions.
                 </p>
               </div>
 
-              <a
+              <Link
                 href="/login"
                 className="shrink-0 rounded-xl bg-white px-6 py-3.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
               >
                 Staff Sign In →
-              </a>
+              </Link>
             </div>
           </div>
         </section>
@@ -677,12 +669,12 @@ export default function Home() {
               follow its progress and view updates.
             </p>
 
-            <a
+            <Link
               href="/tickets/new"
               className="mt-7 inline-flex rounded-xl bg-white px-6 py-3.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
             >
               Create Support Request →
-            </a>
+            </Link>
           </div>
         </div>
       </section>

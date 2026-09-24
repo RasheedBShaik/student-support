@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type Ticket = {
   _id: string;
@@ -60,25 +61,18 @@ function statusClass(status: string) {
   switch (status) {
     case "NEW":
       return "bg-blue-50 text-blue-700";
-
     case "ASSIGNED":
       return "bg-indigo-50 text-indigo-700";
-
     case "IN_PROGRESS":
       return "bg-amber-50 text-amber-700";
-
     case "PENDING_STUDENT":
       return "bg-orange-50 text-orange-700";
-
     case "PENDING_INTERNAL":
       return "bg-purple-50 text-purple-700";
-
     case "RESOLVED":
       return "bg-emerald-50 text-emerald-700";
-
     case "CLOSED":
       return "bg-slate-100 text-slate-600";
-
     default:
       return "bg-slate-100 text-slate-600";
   }
@@ -88,16 +82,12 @@ function priorityClass(priority: string) {
   switch (priority) {
     case "URGENT":
       return "bg-red-100 text-red-700";
-
     case "HIGH":
       return "bg-orange-100 text-orange-700";
-
     case "MEDIUM":
       return "bg-yellow-100 text-yellow-700";
-
     case "LOW":
       return "bg-green-100 text-green-700";
-
     default:
       return "bg-slate-100 text-slate-600";
   }
@@ -107,16 +97,12 @@ function slaClass(slaStatus: string) {
   switch (slaStatus) {
     case "BREACHED":
       return "bg-red-50 text-red-700";
-
     case "AT_RISK":
       return "bg-orange-50 text-orange-700";
-
     case "ON_TRACK":
       return "bg-emerald-50 text-emerald-700";
-
     case "COMPLETED":
       return "bg-slate-100 text-slate-600";
-
     default:
       return "bg-slate-100 text-slate-600";
   }
@@ -128,7 +114,7 @@ export default function StaffDashboard() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [stats, setStats] = useState<Stats>(emptyStats);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
@@ -138,15 +124,15 @@ export default function StaffDashboard() {
   const [userName, setUserName] = useState("");
   const [userRole, setUserRole] = useState("");
 
-  async function loadTickets() {
+  const loadTickets = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
 
       const params = new URLSearchParams();
 
-      if (search) {
-        params.set("search", search);
+      if (search.trim()) {
+        params.set("search", search.trim());
       }
 
       if (status !== "ALL") {
@@ -157,8 +143,12 @@ export default function StaffDashboard() {
         params.set("priority", priority);
       }
 
+      const query = params.toString();
+
       const response = await fetch(
-        `/api/staff/tickets?${params.toString()}`,
+        query
+          ? `/api/staff/tickets?${query}`
+          : "/api/staff/tickets",
         {
           credentials: "include",
           cache: "no-store",
@@ -178,7 +168,12 @@ export default function StaffDashboard() {
         );
       }
 
-      setTickets(data.tickets || []);
+      setTickets(
+        Array.isArray(data.tickets)
+          ? data.tickets
+          : [],
+      );
+
       setStats(data.stats || emptyStats);
 
       setUserName(data.user?.name || "");
@@ -192,23 +187,32 @@ export default function StaffDashboard() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [priority, router, search, status]);
 
-  useEffect(() => {
-    loadTickets();
-  }, [status, priority]);
-
-  const handleSearch = (event: React.FormEvent) => {
+  const handleSearch = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
     event.preventDefault();
-    loadTickets();
+    await loadTickets();
+  };
+
+  const handleStatusChange = async (
+    value: string,
+  ) => {
+    setStatus(value);
+  };
+
+  const handlePriorityChange = async (
+    value: string,
+  ) => {
+    setPriority(value);
   };
 
   return (
     <main className="min-h-screen bg-[#f6f8fc] text-slate-900">
-      {/* Header */}
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
-          <a
+          <Link
             href="/"
             className="flex items-center gap-3"
           >
@@ -225,7 +229,7 @@ export default function StaffDashboard() {
                 Staff Management Portal
               </p>
             </div>
-          </a>
+          </Link>
 
           <div className="flex items-center gap-3">
             <div className="hidden text-right sm:block">
@@ -250,7 +254,6 @@ export default function StaffDashboard() {
       </header>
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10">
-        {/* Page heading */}
         <div className="mb-8">
           <p className="text-xs font-bold uppercase tracking-widest text-blue-600">
             Management
@@ -261,12 +264,11 @@ export default function StaffDashboard() {
           </h1>
 
           <p className="mt-2 text-sm text-slate-500 sm:text-base">
-            Monitor requests, ownership, priorities, SLA performance,
-            and ageing from one place.
+            Monitor requests, ownership, priorities, SLA
+            performance, and ageing from one place.
           </p>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5">
           <StatCard
             label="Total"
@@ -323,7 +325,6 @@ export default function StaffDashboard() {
           />
         </div>
 
-        {/* Filters */}
         <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <form
             onSubmit={handleSearch}
@@ -341,13 +342,19 @@ export default function StaffDashboard() {
             <select
               value={status}
               onChange={(event) =>
-                setStatus(event.target.value)
+                void handleStatusChange(
+                  event.target.value,
+                )
               }
               className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium outline-none focus:border-blue-500"
             >
-              <option value="ALL">All statuses</option>
+              <option value="ALL">
+                All statuses
+              </option>
               <option value="NEW">New</option>
-              <option value="ASSIGNED">Assigned</option>
+              <option value="ASSIGNED">
+                Assigned
+              </option>
               <option value="IN_PROGRESS">
                 In Progress
               </option>
@@ -357,41 +364,52 @@ export default function StaffDashboard() {
               <option value="PENDING_INTERNAL">
                 Pending Internal
               </option>
-              <option value="RESOLVED">Resolved</option>
-              <option value="CLOSED">Closed</option>
+              <option value="RESOLVED">
+                Resolved
+              </option>
+              <option value="CLOSED">
+                Closed
+              </option>
             </select>
 
             <select
               value={priority}
               onChange={(event) =>
-                setPriority(event.target.value)
+                void handlePriorityChange(
+                  event.target.value,
+                )
               }
               className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium outline-none focus:border-blue-500"
             >
-              <option value="ALL">All priorities</option>
+              <option value="ALL">
+                All priorities
+              </option>
               <option value="LOW">Low</option>
-              <option value="MEDIUM">Medium</option>
+              <option value="MEDIUM">
+                Medium
+              </option>
               <option value="HIGH">High</option>
-              <option value="URGENT">Urgent</option>
+              <option value="URGENT">
+                Urgent
+              </option>
             </select>
 
             <button
               type="submit"
-              className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+              disabled={loading}
+              className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Search
+              {loading ? "Loading..." : "Search"}
             </button>
           </form>
         </div>
 
-        {/* Error */}
         {error && (
           <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
             {error}
           </div>
         )}
 
-        {/* Tickets */}
         <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-5 py-5">
             <div className="flex items-center justify-between gap-4">
@@ -402,21 +420,25 @@ export default function StaffDashboard() {
 
                 <p className="mt-1 text-xs text-slate-500">
                   {tickets.length} ticket
-                  {tickets.length === 1 ? "" : "s"} shown
+                  {tickets.length === 1
+                    ? ""
+                    : "s"}{" "}
+                  shown
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={loadTickets}
-                className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                onClick={() => void loadTickets()}
+                disabled={loading}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Refresh
               </button>
             </div>
           </div>
 
-          {loading ? (
+          {loading && tickets.length === 0 ? (
             <div className="px-6 py-16 text-center">
               <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" />
 
@@ -435,7 +457,8 @@ export default function StaffDashboard() {
               </h3>
 
               <p className="mt-2 text-sm text-slate-500">
-                Try changing your filters or search terms.
+                Try changing your filters or search
+                terms.
               </p>
             </div>
           ) : (
@@ -446,7 +469,6 @@ export default function StaffDashboard() {
                   className="p-5 transition hover:bg-slate-50/70"
                 >
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                    {/* Main information */}
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-xs font-bold text-blue-600">
@@ -515,7 +537,6 @@ export default function StaffDashboard() {
                       </div>
                     </div>
 
-                    {/* SLA / ageing */}
                     <div className="w-full shrink-0 lg:w-52">
                       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <div className="flex items-center justify-between">
@@ -545,7 +566,8 @@ export default function StaffDashboard() {
                           </span>
                         </div>
 
-                        {ticket.sla?.resolutionDueAt && (
+                        {ticket.sla
+                          ?.resolutionDueAt && (
                           <p className="mt-3 text-[11px] text-slate-400">
                             Due{" "}
                             {new Date(

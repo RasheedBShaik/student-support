@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/dist/client/link";
 
 export default function SignupPage() {
 const router = useRouter();
@@ -84,7 +85,7 @@ return (
       <div className="relative z-10 flex w-full flex-col justify-between p-12 xl:p-16">
 
         {/* Logo */}
-        <a href="/" className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 font-bold text-white">
             SS
           </div>
@@ -98,7 +99,7 @@ return (
               Support & Ticket Management
             </p>
           </div>
-        </a>
+        </Link>
 
         {/* Content */}
         <div className="max-w-lg">
@@ -348,22 +349,22 @@ return (
         <div className="mt-6 text-center">
           <p className="text-sm text-slate-500">
             Already have an account?{" "}
-            <a
+            <Link
               href="/login"
               className="font-semibold text-blue-600 transition hover:text-blue-700"
             >
               Sign in
-            </a>
+            </Link>
           </p>
         </div>
 
         <div className="mt-4 text-center">
-          <a
+          <Link
             href="/"
             className="text-sm font-medium text-slate-500 transition hover:text-blue-600"
           >
             ← Back to Support Center
-          </a>
+          </Link>
         </div>
       </div>
     </section>

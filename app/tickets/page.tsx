@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type Ticket = {
 _id: string;
@@ -138,7 +139,7 @@ return (
 <main className="min-h-screen bg-[#f6f8fc]">
 <header className="border-b border-slate-200 bg-white">
 <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
-<a href="/" className="flex items-center gap-3" >
+<Link href="/" className="flex items-center gap-3" >
 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 font-bold text-white">
 SS
 </div>
@@ -152,14 +153,14 @@ SS
             Support & Ticket Management
           </p>
         </div>
-      </a>
+      </Link>
 
-      <a
+      <Link
         href="/tickets/new"
         className="inline-flex items-center rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
       >
         + New Request
-      </a>
+      </Link>
     </div>
   </header>
 
@@ -204,17 +205,17 @@ SS
             here so you can track its progress.
           </p>
 
-          <a
+          <Link
             href="/tickets/new"
             className="mt-6 inline-flex rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700"
           >
             Create your first request
-          </a>
+          </Link>
         </div>
       ) : (
         <div className="space-y-4">
           {tickets.map((ticket) => (
-            <a
+            <Link
               key={ticket._id}
               href={`/tickets/${ticket._id}`}
               className="block rounded-xl border border-slate-200 p-5 transition hover:border-blue-300 hover:shadow-sm"
@@ -250,7 +251,7 @@ SS
                   ).toLocaleDateString()}
                 </span>
               </div>
-            </a>
+            </Link>
           ))}
         </div>
       )}

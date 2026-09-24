@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -42,9 +43,7 @@ export default function LoginPage() {
 
     setTimeout(() => {
       if (
-        data.user.role === "STAFF" ||
-        data.user.role === "MANAGER" ||
-        data.user.role === "ADMIN"
+        data.user.role === "STAFF"
       ) {
         router.push("/staff");
       } else {
@@ -72,7 +71,7 @@ export default function LoginPage() {
           <div className="absolute -bottom-24 -right-24 h-96 w-96 rounded-full bg-indigo-500/20 blur-3xl" />
 
           <div className="relative z-10 flex w-full flex-col justify-between p-12 xl:p-16">
-            <a href="/" className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 font-bold text-white">
                 SS
               </div>
@@ -84,7 +83,7 @@ export default function LoginPage() {
                   Support & Ticket Management
                 </p>
               </div>
-            </a>
+            </Link>
 
             <div className="max-w-lg">
               <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-blue-300">
@@ -264,20 +263,20 @@ export default function LoginPage() {
             <div className="mt-6 text-center">
               <p className="text-sm text-slate-500">
                 Don&apos;t have an account?{" "}
-                <a
+                <Link
                   href="/signup"
                   className="font-semibold text-blue-600 transition hover:text-blue-700"
                 >
                   Sign up
-                </a>
+                </Link>
               </p>
 
-              <a
+              <Link
                 href="/"
                 className="mt-3 inline-block text-sm font-medium text-slate-500 transition hover:text-blue-600"
               >
                 ← Back to Support Center
-              </a>
+              </Link>
             </div>
           </div>
         </section>

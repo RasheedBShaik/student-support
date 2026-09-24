@@ -11,7 +11,7 @@ if (!secret) {
 
 const secretKey = new TextEncoder().encode(secret);
 
-export type UserRole = "STUDENT" | "STAFF" | "MANAGER" | "ADMIN";
+export type UserRole = "STUDENT" | "STAFF";
 
 export async function createSession(
   userId: string,
