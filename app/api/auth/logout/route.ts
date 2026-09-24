@@ -2,26 +2,25 @@ import { NextResponse } from "next/server";
 import { destroySession } from "@/lib/auth";
 
 export async function POST() {
-try {
-await destroySession();
+  try {
+    await destroySession();
 
-return NextResponse.json({
-  success: true,
-  message: "Logged out successfully",
-});
+    return NextResponse.json({
+      success: true,
+      message: "Logged out successfully",
+    });
+  } catch (error) {
+    console.error(
+      "POST /api/auth/logout error:",
+      error
+    );
 
-
-} catch (error) {
-console.error("POST /api/auth/logout error:", error);
-
-return NextResponse.json(
-  {
-    success: false,
-    message: "Unable to logout",
-  },
-  { status: 500 },
-);
-
-
-}
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Unable to logout",
+      },
+      { status: 500 }
+    );
+  }
 }

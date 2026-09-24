@@ -1,4 +1,8 @@
-import mongoose, { Schema, Document, Model } from "mongoose";
+import mongoose, {
+  Schema,
+  Document,
+  Model,
+} from "mongoose";
 
 export interface ITicket extends Document {
   ticketNumber: string;
@@ -19,7 +23,11 @@ export interface ITicket extends Document {
     | "TRANSPORT"
     | "OTHER";
 
-  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  priority:
+    | "LOW"
+    | "MEDIUM"
+    | "HIGH"
+    | "URGENT";
 
   status:
     | "NEW"
@@ -63,6 +71,7 @@ const TicketSchema = new Schema<ITicket>(
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
     },
 
     subject: {
@@ -95,8 +104,14 @@ const TicketSchema = new Schema<ITicket>(
 
     priority: {
       type: String,
-      enum: ["LOW", "MEDIUM", "HIGH", "URGENT"],
+      enum: [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "URGENT",
+      ],
       default: "MEDIUM",
+      index: true,
     },
 
     status: {
@@ -111,16 +126,19 @@ const TicketSchema = new Schema<ITicket>(
         "CLOSED",
       ],
       default: "NEW",
+      index: true,
     },
 
     departmentId: {
       type: Schema.Types.ObjectId,
       ref: "Department",
+      index: true,
     },
 
     assignedTo: {
       type: Schema.Types.ObjectId,
       ref: "User",
+      index: true,
     },
 
     sla: {
@@ -146,8 +164,26 @@ const TicketSchema = new Schema<ITicket>(
   }
 );
 
+TicketSchema.index({
+  studentId: 1,
+  createdAt: -1,
+});
+
+TicketSchema.index({
+  assignedTo: 1,
+  status: 1,
+});
+
+TicketSchema.index({
+  departmentId: 1,
+  status: 1,
+});
+
 const Ticket: Model<ITicket> =
   mongoose.models.Ticket ||
-  mongoose.model<ITicket>("Ticket", TicketSchema);
+  mongoose.model<ITicket>(
+    "Ticket",
+    TicketSchema
+  );
 
 export default Ticket;

@@ -131,7 +131,6 @@ export default function NewTicketPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          studentId: "6ab520e033f006424564a6a5",
           subject: form.subject,
           description: form.description,
           category: form.category,
@@ -200,13 +199,12 @@ export default function NewTicketPage() {
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
         {/* Breadcrumb */}
         <div className="mb-6">
-          <button
-            type="button"
-            onClick={() => window.history.back()}
+          <a
+            href="/"
             className="text-sm font-medium text-slate-500 transition hover:text-blue-600"
           >
             ← Back to Support
-          </button>
+          </a>
         </div>
 
         {/* Hero */}

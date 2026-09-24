@@ -1,25 +1,67 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+  const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
   const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    setLoading(true);
-    setMessage("");
+  setLoading(true);
+  setMessage("");
 
-    // Authentication API will be connected next.
-    await new Promise((resolve) => setTimeout(resolve, 600));
+  try {
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        email: email.trim().toLowerCase(),
+        password,
+      }),
+    });
 
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Unable to sign in");
+    }
+
+    setMessage(`Welcome back, ${data.user.name}!`);
+
+    setTimeout(() => {
+      if (
+        data.user.role === "STAFF" ||
+        data.user.role === "MANAGER" ||
+        data.user.role === "ADMIN"
+      ) {
+        router.push("/staff");
+      } else {
+        router.push("/tickets");
+      }
+
+      router.refresh();
+    }, 500);
+  } catch (error) {
+    setMessage(
+      error instanceof Error ? error.message : "Something went wrong",
+    );
+  } finally {
     setLoading(false);
-    setMessage("Authentication will be connected next.");
-  };
+  }
+};
+
 
   return (
     <main className="min-h-screen bg-[#f6f8fc]">
@@ -37,6 +79,7 @@ export default function LoginPage() {
 
               <div>
                 <p className="font-semibold text-white">Student Support</p>
+
                 <p className="text-xs text-slate-400">
                   Support & Ticket Management
                 </p>
@@ -51,9 +94,7 @@ export default function LoginPage() {
 
               <h1 className="text-4xl font-bold leading-tight tracking-tight text-white xl:text-5xl">
                 One place for every
-                <span className="block text-blue-400">
-                  support request.
-                </span>
+                <span className="block text-blue-400">support request.</span>
               </h1>
 
               <p className="mt-5 max-w-md text-base leading-7 text-slate-400">
@@ -64,6 +105,7 @@ export default function LoginPage() {
               <div className="mt-9 grid grid-cols-2 gap-3">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <p className="text-2xl font-bold text-white">24/7</p>
+
                   <p className="mt-1 text-xs text-slate-400">
                     Request tracking
                   </p>
@@ -71,6 +113,7 @@ export default function LoginPage() {
 
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <p className="text-2xl font-bold text-white">1</p>
+
                   <p className="mt-1 text-xs text-slate-400">
                     Central support portal
                   </p>
@@ -84,7 +127,7 @@ export default function LoginPage() {
           </div>
         </section>
 
-        {/* Login panel */}
+        {/* Login */}
         <section className="flex items-center justify-center px-5 py-10 sm:px-8 lg:px-12">
           <div className="w-full max-w-md">
             {/* Mobile branding */}
@@ -94,9 +137,7 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <p className="font-semibold text-slate-900">
-                  Student Support
-                </p>
+                <p className="font-semibold text-slate-900">Student Support</p>
 
                 <p className="text-xs text-slate-500">
                   Support & Ticket Management
@@ -159,22 +200,36 @@ export default function LoginPage() {
                     </button>
                   </div>
 
-                  <input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    autoComplete="current-password"
-                    required
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50"
-                  />
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      autoComplete="current-password"
+                      required
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 pr-12 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((current) => !current)}
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
+                      className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                    >
+                      {showPassword ? "◉" : "◌"}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Remember */}
                 <label className="flex cursor-pointer items-center gap-3">
                   <input
                     type="checkbox"
+                    defaultChecked
                     className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600"
                   />
 
@@ -183,6 +238,7 @@ export default function LoginPage() {
                   </span>
                 </label>
 
+                {/* Submit */}
                 <button
                   type="submit"
                   disabled={loading}
@@ -192,17 +248,33 @@ export default function LoginPage() {
                 </button>
 
                 {message && (
-                  <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-center text-sm font-medium text-blue-700">
-                    {message}
+                  <div
+                    className={`rounded-xl border px-4 py-3 text-center text-sm font-medium ${
+                      message.startsWith("Welcome")
+                        ? "border-green-200 bg-green-50 text-green-700"
+                        : "border-red-200 bg-red-50 text-red-700"
+                    }`}
+                  >
+                    {message.startsWith("Welcome") ? "✓" : "!"} {message}
                   </div>
                 )}
               </form>
             </div>
 
             <div className="mt-6 text-center">
+              <p className="text-sm text-slate-500">
+                Don&apos;t have an account?{" "}
+                <a
+                  href="/signup"
+                  className="font-semibold text-blue-600 transition hover:text-blue-700"
+                >
+                  Sign up
+                </a>
+              </p>
+
               <a
                 href="/"
-                className="text-sm font-medium text-slate-500 transition hover:text-blue-600"
+                className="mt-3 inline-block text-sm font-medium text-slate-500 transition hover:text-blue-600"
               >
                 ← Back to Support Center
               </a>
