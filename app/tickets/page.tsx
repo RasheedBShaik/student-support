@@ -63,24 +63,26 @@ export default function TicketsPage() {
   return (
     <main className="min-h-screen bg-[#f6f8fc]">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 font-bold text-white">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <a href="/tickets" className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 font-bold text-white">
               SS
             </div>
 
-            <div>
-              <p className="font-semibold text-slate-900">Student Support</p>
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-slate-900">
+                Student Support
+              </p>
 
               <p className="text-xs text-slate-500">
                 Support & Ticket Management
               </p>
             </div>
-          </div>
+          </a>
 
           <a
             href="/tickets/new"
-            className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+            className="inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 sm:w-auto"
           >
             + New Request
           </a>
