@@ -5,7 +5,7 @@ export interface IUser extends Document {
   email: string;
   password: string;
   role: "STUDENT" | "STAFF" | "MANAGER" | "ADMIN";
-  department?: string;
+  department?: mongoose.Types.ObjectId;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -39,8 +39,9 @@ const UserSchema = new Schema<IUser>(
     },
 
     department: {
-      type: String,
-      default: null,
+        type: Schema.Types.ObjectId,
+        ref: "Department",
+        default: null,
     },
 
     isActive: {
