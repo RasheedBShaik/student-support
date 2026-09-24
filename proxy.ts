@@ -7,22 +7,14 @@ const COOKIE_NAME = "student_support_session";
 const secret = process.env.AUTH_SECRET;
 
 if (!secret) {
-  throw new Error("Please define AUTH_SECRET in .env.local");
+  throw new Error("Please define AUTH_SECRET in your environment variables");
 }
 
 const secretKey = new TextEncoder().encode(secret);
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  // Only protect staff/management pages.
-  if (!pathname.startsWith("/staff")) {
-    return NextResponse.next();
-  }
-
+export async function proxy(request: NextRequest) {
   const token = request.cookies.get(COOKIE_NAME)?.value;
 
-  // Not logged in → login page
   if (!token) {
     return NextResponse.redirect(
       new URL("/login?redirect=/staff", request.url),
@@ -36,14 +28,6 @@ export async function middleware(request: NextRequest) {
       throw new Error("Invalid session");
     }
 
-    /*
-     * IMPORTANT:
-     * The JWT only contains userId.
-     * Therefore middleware cannot determine the user's role.
-     *
-     * We allow the request through here and let the /api/staff/tickets
-     * route perform the actual STAFF authorization.
-     */
     return NextResponse.next();
   } catch {
     const response = NextResponse.redirect(
