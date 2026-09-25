@@ -352,7 +352,7 @@ pnpm dev
 
 The application will be available at:
 
-http://localhost:3000
+https://student-support-vms7.vercel.app/
 
 Seed Data
 
