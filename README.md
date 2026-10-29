@@ -1,436 +1,256 @@
-Student Support & Ticket Management
 
-A web-based student support and ticket management system designed to help students raise administrative requests and enable support staff to manage, prioritize, assign, track, and resolve those requests.
+# 🎓 Student Support & Ticket Management System
 
-Problem
+A full-stack web application that helps students raise administrative support requests and enables staff to manage, prioritize, assign, track, and resolve tickets through a structured workflow.
 
-Students often need help with administrative matters such as:
+🌐 **Live Demo:** [Open Student Support](https://student-support-vms7.vercel.app/)
 
-Fees & payments
+---
 
-Attendance
+## 📌 Overview
 
-ID cards
+The Student Support & Ticket Management System provides a centralized platform for handling student requests related to fees, attendance, ID cards, certificates, examinations, hostel services, transport, and other administrative needs.
 
-Documents
+Students can submit requests and track their progress, while staff members can manage tickets assigned to their departments.
 
-Certificates
+## ✨ Key Features
 
-Examination
+### 👨‍🎓 Student Features
 
-Hostel
+- Student authentication
+- Create support tickets
+- Select ticket categories and priorities
+- View submitted tickets and ticket details
+- Track ticket status and activity history
+- View ticket ageing and resolution information
 
-Transport
+### 🧑‍💼 Staff Features
 
-The system provides a central place for students to submit requests and track their progress while allowing support staff to manage tickets through a structured workflow.
+- Staff authentication
+- Department-based ticket access
+- Search and filter tickets
+- Assign and reassign tickets
+- Update ticket status and priority
+- Add comments and activity updates
+- Resolve, close, and reopen tickets
+- Monitor service-level agreement (SLA) status
 
-Key Features
-Student
+### 🔄 Ticket Workflow
 
-Student authentication
+Tickets can move through the following lifecycle:
 
-Create support tickets
-
-Select support category
-
-Set ticket priority
-
-View submitted tickets
-
-View ticket details
-
-Track ticket status
-
-View ticket activity/history
-
-View ticket ageing
-
-Receive resolution information
-
-Staff
-
-Staff authentication
-
-Department-based ticket visibility
-
-View tickets assigned to their department
-
-Search and filter tickets
-
-View ticket details
-
-Assign tickets
-
-Change ticket status
-
-Change ticket priority
-
-Add comments
-
-Put tickets into pending states
-
-Resolve tickets
-
-Close and reopen tickets
-
-View SLA status
-
-View ticket activity history
-
-Ticket Management
-Statuses
-
-Tickets support the following statuses:
-
-NEW → ASSIGNED → IN_PROGRESS → PENDING_* → RESOLVED → CLOSED
-
+```text
+NEW
+  ↓
+ASSIGNED
+  ↓
+IN_PROGRESS
+  ↓
+PENDING / RESOLVED
+  ↓
+RESUMED / CLOSED
+```
 
 Pending states include:
 
-PENDING_STUDENT
-
-PENDING_INTERNAL
-
-Priorities
-
-LOW
-
-MEDIUM
-
-HIGH
-
-URGENT
-
-The system also calculates:
-
-Ticket ageing
-
-Resolution SLA
-
-SLA status
-
-Pending state
-
-Resolution information
-
-Activity history
-
-Roles
-
-The current implementation uses two primary operational roles:
-
-Role	Responsibility
-Student	Creates and tracks their own support requests
-Staff	Manages tickets belonging to their department
-
-The system uses department-level ownership so staff members do not automatically gain access to tickets outside their department.
-
-Ticket Workflow
-
-A typical ticket follows this lifecycle:
-
-Student creates ticket
-        ↓
-       NEW
-        ↓
-    ASSIGNED
-        ↓
-   IN_PROGRESS
-        ↓
- ┌──────┴─────────┐
- ↓                ↓
-PENDING        RESOLVED
- ↓                ↓
-RESUMED           ↓
- ↓                ↓
-IN_PROGRESS      CLOSED
-
+- `PENDING_STUDENT`
+- `PENDING_INTERNAL`
 
 Tickets can also be reopened when additional work is required.
 
-SLA
+### ⏱️ SLA Management
 
-Different priorities have different resolution targets:
+The application uses priority-based resolution targets:
 
-Priority	Resolution SLA
-LOW	72 hours
-MEDIUM	48 hours
-HIGH	24 hours
-URGENT	8 hours
+| Priority | Resolution Target |
+|---|---:|
+| Low | 72 hours |
+| Medium | 48 hours |
+| High | 24 hours |
+| Urgent | 8 hours |
 
-The system identifies tickets as:
+SLA status can indicate whether a ticket is on track, at risk, breached, completed, or has no SLA.
 
-ON_TRACK
+### 🔐 Access Control
 
-AT_RISK
+- Students can access their own support tickets.
+- Staff members can access tickets belonging to their department.
+- Ticket assignments and updates are validated on the server.
+- Ticket activity history records important actions.
 
-BREACHED
+## 🛠️ Tech Stack
 
-COMPLETED
+| Technology | Purpose |
+|---|---|
+| Next.js | Full-stack web framework |
+| React | User interface |
+| TypeScript | Type safety |
+| Tailwind CSS | Styling |
+| MongoDB | Database |
+| Mongoose | MongoDB object modeling |
+| pnpm | Package management |
 
-NO_SLA
+## 🏗️ Architecture
 
-Older tickets without stored SLA information can have their SLA deadline calculated from the ticket creation time and priority.
+The application follows a full-stack Next.js architecture.
 
-Activity History
-
-Important ticket actions are recorded in ticket activity history.
-
-Examples include:
-
-Ticket created
-
-Ticket assigned
-
-Ticket reassigned
-
-Status changed
-
-Priority changed
-
-Comment added
-
-Ticket moved to pending
-
-Ticket resumed
-
-Ticket resolved
-
-Ticket reopened
-
-Ticket closed
-
-Ticket escalated
-
-This provides an audit trail of how a ticket was handled.
-
-Technical Stack
-
-Next.js
-
-TypeScript
-
-React
-
-Tailwind CSS
-
-MongoDB
-
-Mongoose
-
-pnpm
-
-Architecture
-
-The application follows a full-stack Next.js architecture:
-
-Frontend
-   ↓
-Next.js API Routes
-   ↓
-Authentication / Authorization
-   ↓
+```text
+Student / Staff
+      │
+      ▼
+Next.js User Interface
+      │
+      ▼
+API Routes
+      │
+      ▼
+Authentication & Authorization
+      │
+      ▼
 Database Logic
-   ↓
+      │
+      ▼
 MongoDB
+```
 
+Core data entities include:
 
-Core MongoDB entities include:
+- User
+- Department
+- Ticket
+- TicketActivity
 
-User
-Department
-Ticket
-TicketActivity
+## ⚙️ Getting Started
 
+### Prerequisites
 
-Tickets reference students, staff members, and departments using MongoDB ObjectIds.
+Make sure you have installed:
 
-Authorization
+- Node.js
+- pnpm
+- MongoDB or an accessible MongoDB database
+- Git (optional)
 
-Authorization is handled on the server side.
+### Installation
 
-Students can access their own tickets.
+**1. Clone the repository**
 
-Staff members can access tickets belonging to their department.
+```bash
+git clone https://github.com/RasheedBShaik/student-support.git
+```
 
-Staff assignment is restricted according to department ownership.
+**2. Navigate to the project directory**
 
-Ticket update permissions are validated by the API.
+```bash
+cd student-support
+```
 
-Authorization does not rely only on frontend visibility.
+**3. Install dependencies**
 
-Important Edge Cases
-
-The implementation considers several failure and edge cases:
-
-Unauthenticated users
-
-Inactive users
-
-Invalid ticket IDs
-
-Non-existent tickets
-
-Unauthorized ticket access
-
-Staff without a department
-
-Inactive assigned staff
-
-Invalid status values
-
-Invalid priority values
-
-Invalid departments
-
-Tickets without SLA information
-
-Reassignment between departments
-
-Reopening resolved/closed tickets
-
-Pending and resumed workflows
-
-Resolution without an existing SLA
-
-Missing ticket relationships
-
-Validation
-
-The application was tested through:
-
-Authentication flows
-
-Student ticket creation
-
-Ticket listing
-
-Ticket detail pages
-
-Staff ticket listing
-
-Department-based access
-
-Ticket assignment
-
-Status changes
-
-Priority changes
-
-Pending/resume workflow
-
-Resolution workflow
-
-Activity history
-
-SLA calculation
-
-Invalid requests
-
-Unauthorized requests
-
-Database seeding is available through:
-
-pnpm exec tsx scripts/seed.ts
-
-Running Locally
-1. Install dependencies
+```bash
 pnpm install
+```
 
-2. Configure environment variables
+**4. Configure environment variables**
 
-Create a .env.local file containing the required environment variables.
+Create a `.env.local` file in the project root and configure the environment variables required by the application.
 
-Do not commit .env.local or database credentials to the repository.
+Use the variable names expected by the project configuration. Keep database credentials and other secrets private.
 
-3. Seed the database
+**5. Seed the database**
+
+```bash
 pnpm exec tsx scripts/seed.ts
+```
 
-4. Start the development server
+Run the seed script only against an appropriate development or demo database.
+
+**6. Start the development server**
+
+```bash
 pnpm dev
+```
 
+Open the local URL displayed in your terminal.
 
-The application will be available at:
+## 📁 Project Structure
 
-https://student-support-vms7.vercel.app/
+```text
+student-support/
+├── app/                  # Application routes and UI
+├── lib/                  # Shared utilities and application logic
+├── models/               # Data models
+├── public/               # Static assets
+├── scripts/              # Utility and database seed scripts
+│
+├── .gitignore            # Git ignore rules
+├── next.config.ts        # Next.js configuration
+├── package.json          # Dependencies and scripts
+├── pnpm-lock.yaml        # Locked dependency versions
+├── pnpm-workspace.yaml   # pnpm workspace configuration
+├── postcss.config.mjs    # PostCSS configuration
+├── proxy.ts              # Request proxy configuration
+├── tsconfig.json         # TypeScript configuration
+└── README.md             # Project documentation
+```
 
-Seed Data
+## 🔑 Demo Credentials
 
-The seed script creates or updates the required departments and test users.
+The repository's existing README documents the following seeded demo accounts.
 
-Student
-Email: student@example.com
-Password: test123
+### Student Account
 
-Staff
-Email: staff@example.com
-Password: test123
+- **Email:** `student@example.com`
+- **Password:** `test123`
 
+### Staff Account
 
-These credentials are for local/demo use only and should not be used in production.
+- **Email:** `staff@example.com`
+- **Password:** `test123`
 
-Trade-offs & Assumptions
+### Admin Account
 
-The project prioritizes a clear working prototype over introducing unnecessary infrastructure.
+- **Username:** `admin`
+- **Password:** `password`
 
-Key assumptions:
+> **Important:** The admin credentials above are included as requested, but their availability has not been verified. Use them only if an administrator demo account with these credentials is actually configured. Never expose a real administrator account or privileged production credentials in a public repository. Replace weak demo credentials with a dedicated, restricted demo account before publishing them.
 
-A ticket belongs to one department at a time.
+If the demo accounts do not work on the deployed website, check the database seed configuration and the application's authentication requirements.
 
-Staff ownership is department-based.
+## 🧪 Validation
 
-Students can only manage their own tickets.
+The project documentation covers testing of important workflows, including:
 
-SLA targets are determined by ticket priority.
+- Authentication
+- Student ticket creation and listing
+- Ticket details and activity history
+- Staff ticket assignment
+- Department-based access control
+- Status and priority updates
+- Pending and resume workflows
+- Ticket resolution and reopening
+- SLA calculation
+- Invalid and unauthorized requests
 
-Activity history records important ticket changes.
+## 🚀 Future Improvements
 
-MongoDB is sufficient for the expected prototype scale.
+Potential enhancements include:
 
-Authentication is session-based.
+- Email and in-app notifications
+- Automated SLA escalation
+- Dashboard analytics and reporting
+- File attachments
+- Bulk ticket management
+- Staff workload distribution
+- More granular permissions
+- Enhanced audit logging
 
-For a production implementation, additional capabilities could include notifications, background SLA escalation jobs, richer reporting, file attachments, and more granular permission management.
+## 👨‍💻 Author
 
-AI Usage
+**Shaik Rasheed Basha**
 
-AI-assisted development was used during implementation for:
+- GitHub: [@RasheedBShaik](https://github.com/RasheedBShaik)
 
-Debugging TypeScript and Mongoose issues
+## 📄 License
 
-Reviewing API authorization logic
-
-Improving ticket workflow implementation
-
-Identifying edge cases
-
-Refining UI and API code
-
-AI-generated code was reviewed and tested manually before being incorporated into the project.
-
-One issue identified during development was a Mongoose model-registration/population problem involving the Department model. The problem was identified from the runtime error and corrected by ensuring the required model was registered before population.
-
-Future Improvements
-
-If the project were developed further, possible improvements include:
-
-Email and in-app notifications
-
-Automatic SLA escalation
-
-Dashboard analytics
-
-File attachments
-
-Advanced reporting
-
-Bulk ticket operations
-
-Staff workload distribution
-
-More granular permissions
-
-Production-grade audit logging
-
-Author
-
-Built as a pre-drive product engineering assignment for the Student Support & Ticket Management problem.
+No license has been specified in this README. Refer to the repository's license file, if one exists, for applicable usage terms.
